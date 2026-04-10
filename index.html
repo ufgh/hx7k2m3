@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Health Stack</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111318">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23111318' width='100' height='100' rx='20'/><text y='68' x='50' text-anchor='middle' font-size='52'>💊</text></svg>">
+<style>
+:root {
+  --bg: #111318;
+  --surface: #181b22;
+  --card: #1e2028;
+  --border: #2a2d37;
+  --text: #e8eaf0;
+  --sub: #9ca3b4;
+  --muted: #5c6370;
+  --accent: #7c8aff;
+  --accent-dim: rgba(124, 138, 255, 0.12);
+  --accent-border: rgba(124, 138, 255, 0.3);
+  --green: #4ade80;
+  --green-dim: rgba(74, 222, 128, 0.12);
+  --green-border: rgba(74, 222, 128, 0.3);
+  --red: #f87171;
+  --red-dim: rgba(248, 113, 113, 0.12);
+  --red-border: rgba(248, 113, 113, 0.3);
+  --amber: #fbbf24;
+  --amber-dim: rgba(251, 191, 36, 0.12);
+  --amber-border: rgba(251, 191, 36, 0.3);
+  --cyan: #22d3ee;
+  --cyan-dim: rgba(34, 211, 238, 0.12);
+  --cyan-border: rgba(34, 211, 238, 0.3);
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+body { overflow-x: hidden; }
+input, select, textarea, button { font-family: inherit; font-size: 16px; }
+select, input, textarea { color-scheme: dark; }
+select option { background: var(--surface); color: var(--text); }
+::-webkit-scrollbar { width: 0; }
+
+/* Layout */
+#app { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; }
+
+/* Screens */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* Setup */
+#screen-setup {
+  min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; padding: 24px 20px;
+}
+.setup-inner { width: 100%; max-width: 380px; }
+.setup-logo { font-size: 32px; margin-bottom: 16px; }
+.setup-title { font-weight: 700; font-size: 20px; margin-bottom: 6px; letter-spacing: -0.01em; }
+.setup-desc { font-size: 14px; color: var(--sub); line-height: 1.6; margin-bottom: 28px; }
+.setup-fields { display: flex; flex-direction: column; gap: 16px; }
+.setup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.setup-note {
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+  padding: 10px 12px; background: var(--surface);
+  border-radius: var(--radius-sm); border: 1px solid var(--border); margin-top: 4px;
+}
+.setup-error { font-size: 13px; color: var(--red); margin-top: 12px; min-height: 20px; }
+
+/* Loading */
+#screen-loading {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.spinner {
+  width: 28px; height: 28px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-label { font-size: 13px; color: var(--muted); }
+
+/* Error */
+#screen-error {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px; text-align: center;
+}
+.error-icon { font-size: 36px; margin-bottom: 16px; }
+.error-title { font-weight: 600; font-size: 15px; color: var(--red); margin-bottom: 8px; }
+.error-msg { font-size: 13px; color: var(--sub); line-height: 1.6; margin-bottom: 24px; max-width: 300px; }
+.error-btns { display: flex; gap: 10px; }
+
+/* Main */
+#screen-main { padding-bottom: 64px; }
+
+/* Header */
+#header {
+  padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
+  background: var(--surface); display: flex;
+  justify-content: space-between; align-items: center;
+  position: sticky; top: 0; z-index: 10;
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-title { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.sync-indicator { display: flex; align-items: center; gap: 5px; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; transition: background 0.3s; }
+.sync-dot.synced { background: var(--green); }
+.sync-dot.pending { background: var(--muted); }
+.sync-dot.syncing { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.sync-dot.error { background: var(--red); }
+@keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+.sync-label { font-size: 11px; color: var(--muted); font-family: var(--mono); transition: color 0.3s; }
+
+/* Bottom nav */
+#bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px; background: var(--surface);
+  border-top: 1px solid var(--border); display: flex; z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-btn {
+  flex: 1; background: none; border: none; cursor: pointer;
+  padding: 10px 4px 8px; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; transition: opacity 0.15s;
+}
+.nav-icon { font-size: 18px; opacity: 0.35; transition: opacity 0.15s; }
+.nav-label { font-size: 10px; color: var(--muted); font-weight: 500; transition: color 0.15s; }
+.nav-btn.active .nav-icon { opacity: 1; }
+.nav-btn.active .nav-label { color: var(--accent); font-weight: 600; }
+
+/* Tab content */
+#tab-content { min-height: calc(100vh - 120px); }
+
+/* Field */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.02em; }
+.field input, .field select, .field textarea {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text);
+  font-size: 16px; width: 100%; outline: none; transition: border-color 0.15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+.field textarea { min-height: 72px; resize: vertical; line-height: 1.5; }
+
+/* Buttons */
+.btn {
+  border-radius: var(--radius-sm); cursor: pointer; font-weight: 500;
+  border: 1px solid; transition: all 0.15s; white-space: nowrap;
+}
+.btn-sm { font-size: 13px; padding: 6px 12px; }
+.btn-md { font-size: 14px; padding: 8px 16px; }
+.btn-full { width: 100%; display: block; text-align: center; }
+.btn-accent { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+.btn-green { background: var(--green-dim); color: var(--green); border-color: var(--green-border); }
+.btn-red { background: var(--red-dim); color: var(--red); border-color: var(--red-border); }
+.btn-muted { background: rgba(92, 99, 112, 0.12); color: var(--muted); border-color: rgba(92, 99, 112, 0.3); }
+.btn-solid { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+
+/* Badge */
+.badge {
+  font-size: 10px; font-weight: 600; padding: 2px 7px;
+  border-radius: 4px; border: 1px solid; white-space: nowrap;
+}
+.badge-strong { background: var(--green-dim); color: var(--green); border-color: var(--green-border); }
+.badge-moderate { background: var(--amber-dim); color: var(--amber); border-color: var(--amber-border); }
+.badge-prelim { background: rgba(251, 146, 60, 0.12); color: #fb923c; border-color: rgba(251, 146, 60, 0.3); }
+.badge-weak { background: var(--red-dim); color: var(--red); border-color: var(--red-border); }
+.badge-unknown { background: rgba(92, 99, 112, 0.12); color: var(--muted); border-color: rgba(92, 99, 112, 0.3); }
+.badge-tested { background: var(--cyan-dim); color: var(--cyan); border-color: var(--cyan-border); }
+.badge-bs { background: var(--amber-dim); color: var(--amber); border-color: var(--amber-border); }
+.badge-hype { background: var(--red-dim); color: var(--red); border-color: var(--red-border); }
+
+/* Filter pills */
+.filter-pills { display: flex; gap: 6px; }
+.pill {
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px; font-size: 12px;
+  cursor: pointer; font-weight: 500; transition: all 0.15s;
+}
+.pill.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+
+/* Supplement card */
+.supp-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
+  transition: opacity 0.2s;
+}
+.supp-card.discontinued { opacity: 0.35; }
+.supp-card-header { padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.supp-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.supp-card-left { flex: 1; margin-right: 12px; }
+.supp-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.supp-name { font-weight: 600; font-size: 15px; }
+.supp-paused-tag {
+  font-size: 10px; background: rgba(92, 99, 112, 0.15); color: var(--muted);
+  padding: 1px 6px; border-radius: 3px; font-weight: 600;
+}
+.supp-brand { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.supp-card-right { text-align: right; flex-shrink: 0; }
+.supp-dose { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent); }
+.supp-timing { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.supp-purpose { font-size: 13px; color: var(--sub); margin-top: 6px; line-height: 1.5; }
+.supp-badges { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+.supp-card-body { border-top: 1px solid var(--border); padding: 14px 16px; display: none; }
+.supp-card-body.open { display: block; }
+.supp-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.supp-meta-key { font-size: 11px; color: var(--muted); margin-bottom: 3px; font-weight: 500; }
+.supp-meta-val { font-size: 13px; color: var(--sub); }
+.supp-notes {
+  font-size: 13px; color: var(--sub); background: var(--bg);
+  padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 12px;
+  line-height: 1.5; border: 1px solid var(--border);
+}
+.supp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Empty state */
+.empty { text-align: center; padding: 56px 24px; color: var(--muted); }
+.empty-icon { font-size: 36px; margin-bottom: 14px; }
+.empty-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.empty-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* Tab toolbar */
+.tab-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+
+/* Schedule */
+.bucket { margin-bottom: 20px; }
+.bucket-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.bucket-emoji { font-size: 16px; }
+.bucket-label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.03em; }
+.bucket-line { flex: 1; height: 1px; background: var(--border); }
+.sched-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.sched-name { font-weight: 600; font-size: 14px; }
+.sched-purpose { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.sched-dose { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); flex-shrink: 0; margin-left: 12px; }
+
+/* Research */
+.section-label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.03em; margin-bottom: 10px; }
+.research-log-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+}
+.research-log-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.research-cat { font-weight: 600; font-size: 14px; }
+.research-date { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.research-conclusion { font-size: 13px; color: var(--sub); line-height: 1.5; margin-bottom: 6px; }
+.research-chosen { font-size: 12px; color: var(--accent); font-family: var(--mono); }
+.research-file {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+  transition: border-color 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.research-file:active { border-color: var(--accent); }
+.research-file-name { font-family: var(--mono); font-size: 12px; color: var(--sub); }
+.research-file-arrow { color: var(--muted); font-size: 18px; }
+#research-viewer { padding: 16px 20px; }
+#research-viewer-content {
+  font-size: 14px; color: var(--sub); line-height: 1.8; white-space: pre-wrap;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-top: 14px;
+}
+.back-btn {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px 14px; color: var(--sub); font-size: 13px;
+  cursor: pointer; margin-bottom: 14px; display: inline-block;
+}
+
+/* Log form */
+.log-form {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.log-form-btns { display: flex; gap: 8px; }
+
+/* Modal overlay */
+#modal-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  z-index: 100; display: none;
+  align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+#modal-overlay.open { display: flex; }
+#modal-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px 16px 0 0; width: 100%; max-width: 480px;
+  max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-header {
+  padding: 18px 20px; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+}
+.modal-title { font-weight: 600; font-size: 16px; }
+.modal-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px;
+}
+.modal-body { padding: 18px 20px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.modal-footer {
+  padding: 14px 20px; border-top: 1px solid var(--border);
+  display: flex; gap: 10px; flex-shrink: 0;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+}
+.modal-footer .btn-full { flex: 1; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid .span2 { grid-column: 1 / -1; }
+
+/* Profile button */
+.profile-btn {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 12px; color: var(--sub);
+  font-size: 12px; cursor: pointer; font-weight: 500;
+}
+
+/* Pad helper */
+.pad { padding: 16px 20px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Setup -->
+  <div id="screen-setup" class="screen">
+    <div class="setup-inner">
+      <div class="setup-logo">💊</div>
+      <div class="setup-title">Health Stack</div>
+      <div class="setup-desc">
+        Connect to a private GitHub repo. All data is encrypted on-device with AES-256-GCM before it leaves your phone.
+      </div>
+      <div class="setup-fields">
+        <div class="field">
+          <span class="field-label">GitHub Personal Access Token</span>
+          <input type="password" id="s-token" placeholder="github_pat_..." autocomplete="off">
+        </div>
+        <div class="setup-row">
+          <div class="field">
+            <span class="field-label">GitHub Username</span>
+            <input type="text" id="s-owner" placeholder="username" autocomplete="off">
+          </div>
+          <div class="field">
+            <span class="field-label">Repository Name</span>
+            <input type="text" id="s-repo" placeholder="my-data" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">Encryption Passphrase</span>
+          <input type="password" id="s-pass" placeholder="Strong passphrase" autocomplete="new-password">
+        </div>
+        <div class="setup-note">
+          Your passphrase never leaves this device. There is no recovery — store it somewhere safe.
+        </div>
+      </div>
+      <div class="setup-error" id="setup-error"></div>
+      <div style="margin-top: 20px;">
+        <button class="btn btn-solid btn-md btn-full" id="connect-btn">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="screen-loading" class="screen">
+    <div class="spinner"></div>
+    <div class="loading-label" id="loading-label">Decrypting...</div>
+  </div>
+
+  <!-- Error -->
+  <div id="screen-error" class="screen">
+    <div class="error-icon">⚠</div>
+    <div class="error-title">Connection Error</div>
+    <div class="error-msg" id="error-msg"></div>
+    <div class="error-btns">
+      <button class="btn btn-accent btn-md" id="retry-btn">Retry</button>
+      <button class="btn btn-muted btn-md" id="reconfig-btn">Reconfigure</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="screen-main" class="screen">
+    <div id="header">
+      <div class="header-left">
+        <div class="header-title">Health Stack</div>
+        <div class="sync-indicator">
+          <div class="sync-dot synced" id="sync-dot"></div>
+          <span class="sync-label" id="sync-label">Synced</span>
+        </div>
+      </div>
+      <button class="profile-btn" id="profile-btn">Profile</button>
+    </div>
+
+    <div id="tab-content"></div>
+
+    <nav id="bottom-nav">
+      <button class="nav-btn active" data-tab="stack">
+        <span class="nav-icon">💊</span>
+        <span class="nav-label">Stack</span>
+      </button>
+      <button class="nav-btn" data-tab="schedule">
+        <span class="nav-icon">🕐</span>
+        <span class="nav-label">Schedule</span>
+      </button>
+      <button class="nav-btn" data-tab="research">
+        <span class="nav-icon">📄</span>
+        <span class="nav-label">Research</span>
+      </button>
+    </nav>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title"></span>
+      <button class="modal-close" id="modal-close">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════════════════════════
+const CONFIG_KEY = 'health-stack-cfg-v2';
+const GH_API = 'https://api.github.com';
+
+const FORMS = ['capsule','tablet','softgel','powder','liquid','gummy','sublingual','topical'];
+const FREQS = ['daily','twice daily','with meals','as needed','cycling','weekly'];
+const TIMINGS = ['morning','afternoon','evening','with food','pre-workout','post-workout','before bed','as needed'];
+const EV_TIERS = ['Strong','Moderate','Preliminary','Weak','Unknown'];
+const PE_TIERS = ['Brand-Specific','Borrowed Science','Hype','Unknown'];
+const TESTING = ['USP','NSF','ConsumerLab','Informed Sport','none','unknown'];
+
+const TIMING_BUCKETS = [
+  { label: 'Morning', emoji: '☀️', keys: ['morning'] },
+  { label: 'With Meals', emoji: '🍽', keys: ['with food', 'afternoon'] },
+  { label: 'Pre / Post Workout', emoji: '💪', keys: ['pre-workout', 'post-workout'] },
+  { label: 'Evening', emoji: '🌙', keys: ['evening', 'before bed'] },
+  { label: 'Flexible', emoji: '↻', keys: ['as needed', 'cycling', 'weekly'] },
+];
+
+const EV_CLASS = {
+  Strong: 'badge-strong', Moderate: 'badge-moderate', Preliminary: 'badge-prelim',
+  Weak: 'badge-weak', Unknown: 'badge-unknown',
+};
+const PE_CLASS = {
+  'Brand-Specific': 'badge-strong', 'Borrowed Science': 'badge-bs',
+  Hype: 'badge-hype', Unknown: 'badge-unknown',
+};
+const SYNC_STATES = {
+  synced:  { cls: 'synced',  label: 'Synced',      color: 'var(--green)' },
+  pending: { cls: 'pending', label: 'Pending...',   color: 'var(--muted)' },
+  syncing: { cls: 'syncing', label: 'Syncing...',   color: 'var(--accent)' },
+  error:   { cls: 'error',   label: 'Sync failed',  color: 'var(--red)' },
+};
+const EMPTY_DATA = {
+  last_updated: today(),
+  profile: { goals: [], medications: [], conditions: [], notes: '' },
+  stack: [], wishlist: [], research_log: [],
+};
+const BLANK_SUPP = {
+  name: '', form: 'capsule', brand: '', dose: '', frequency: 'daily',
+  timing: 'morning', purpose: '', cost_per_serving: '',
+  evidence_tier: 'Unknown', product_evidence_tier: 'Unknown',
+  third_party_tested: 'unknown', started: today(), status: 'active', notes: '',
+};
+
+function today() { return new Date().toISOString().split('T')[0]; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════════════════════
+let CFG = null;
+let DATA = null;
+let FILE_SHA = '';
+let SYNC_TIMER = null;
+let ACTIVE_TAB = 'stack';
+let RESEARCH_FILES = null;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Storage — localStorage (GitHub Pages, normal browser context)
+// ═══════════════════════════════════════════════════════════════════════════════
+function storageGet(k) {
+  try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }
+  catch { return null; }
+}
+function storageSet(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Crypto — AES-256-GCM with PBKDF2
+// Binary layout: salt(16) + iv(12) + ciphertext(N) + authTag(16)
+// Compatible with the Node.js encrypt.js module.
+// ═══════════════════════════════════════════════════════════════════════════════
+const ENC = new TextEncoder();
+const DEC = new TextDecoder();
+
+async function deriveKey(passphrase, salt) {
+  const raw = await crypto.subtle.importKey('raw', ENC.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    raw, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+function u8ToB64(bytes) {
+  let s = '';
+  const ch = 8192;
+  for (let i = 0; i < bytes.length; i += ch)
+    s += String.fromCharCode(...bytes.subarray(i, i + ch));
+  return btoa(s);
+}
+
+async function cryptoEncrypt(plaintext, passphrase) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, ENC.encode(plaintext));
+  const out = new Uint8Array(28 + ct.byteLength);
+  out.set(salt, 0);
+  out.set(iv, 16);
+  out.set(new Uint8Array(ct), 28);
+  return u8ToB64(out);
+}
+
+async function cryptoDecrypt(b64, passphrase) {
+  const buf = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const key = await deriveKey(passphrase, buf.slice(0, 16));
+  const pt = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: buf.slice(16, 28) }, key, buf.slice(28)
+  );
+  return DEC.decode(pt);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GitHub API
+// ═══════════════════════════════════════════════════════════════════════════════
+function ghHeaders() {
+  return {
+    Authorization: `token ${CFG.token}`,
+    Accept: 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
+  };
+}
+
+async function ghGet(path) {
+  const r = await fetch(`${GH_API}/repos/${CFG.owner}/${CFG.repo}/contents/${path}`, { headers: ghHeaders() });
+  return { status: r.status, body: await r.json().catch(() => null) };
+}
+
+async function ghPut(path, content, sha, msg) {
+  const payload = { message: msg || `sync: ${path}`, content, ...(sha ? { sha } : {}) };
+  const r = await fetch(`${GH_API}/repos/${CFG.owner}/${CFG.repo}/contents/${path}`, {
+    method: 'PUT', headers: ghHeaders(), body: JSON.stringify(payload),
+  });
+  return { status: r.status, body: await r.json().catch(() => null) };
+}
+
+async function fetchFile(path) {
+  const { status, body } = await ghGet(path);
+  if (status === 404) return { found: false, content: null, sha: null };
+  if (status !== 200) throw new Error(`GitHub ${status}: ${body?.message || 'error'}`);
+  const b64 = body.content.replace(/\n/g, '');
+  let content;
+  try {
+    content = await cryptoDecrypt(b64, CFG.passphrase);
+  } catch {
+    // Fallback: file might not be encrypted (e.g. first push from desktop without encryption)
+    content = DEC.decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+  }
+  return { found: true, content, sha: body.sha };
+}
+
+async function pushFile(path, plaintext, sha) {
+  const content = await cryptoEncrypt(plaintext, CFG.passphrase);
+  const { status, body } = await ghPut(path, content, sha);
+  if (status !== 200 && status !== 201)
+    throw new Error(`Push failed (${status}): ${body?.message || 'unknown'}`);
+  return body.content.sha;
+}
+
+async function ensureGitignore() {
+  const { status } = await ghGet('.gitignore');
+  if (status === 200) return;
+  const lines = [
+    '# Health Stack', '',
+    '# Credentials', 'config.json', '',
+    '# OS', '.DS_Store', 'Thumbs.db', '',
+    '# Node', 'node_modules/',
+  ].join('\n');
+  const content = btoa(unescape(encodeURIComponent(lines)));
+  await ghPut('.gitignore', content, null, 'chore: add .gitignore').catch(() => {});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Sync
+// ═══════════════════════════════════════════════════════════════════════════════
+function setSyncStatus(state) {
+  const s = SYNC_STATES[state];
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = `sync-dot ${s.cls}`;
+  label.textContent = s.label;
+  label.style.color = s.color;
+}
+
+async function pushData() {
+  setSyncStatus('syncing');
+  try {
+    const plain = JSON.stringify({ ...DATA, last_updated: today() }, null, 2);
+    FILE_SHA = await pushFile('supplements.json', plain, FILE_SHA);
+    setSyncStatus('synced');
+  } catch (e) {
+    console.error('Sync failed:', e);
+    setSyncStatus('error');
+  }
+}
+
+function schedulePush() {
+  setSyncStatus('pending');
+  clearTimeout(SYNC_TIMER);
+  SYNC_TIMER = setTimeout(pushData, 3000);
+}
+
+function mutateData(updater) {
+  updater(DATA);
+  schedulePush();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Screen management
+// ═══════════════════════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// App init
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadFromGitHub() {
+  showScreen('screen-loading');
+  try {
+    const { found, content, sha } = await fetchFile('supplements.json');
+    if (found) {
+      FILE_SHA = sha;
+      DATA = JSON.parse(content);
+    } else {
+      const plain = JSON.stringify(EMPTY_DATA, null, 2);
+      FILE_SHA = await pushFile('supplements.json', plain, '');
+      DATA = JSON.parse(JSON.stringify(EMPTY_DATA));
+      ensureGitignore();
+    }
+    showScreen('screen-main');
+    renderTab(ACTIVE_TAB);
+  } catch (e) {
+    document.getElementById('error-msg').textContent = e.message || 'Failed to connect to GitHub.';
+    showScreen('screen-error');
+  }
+}
+
+function init() {
+  const cfg = storageGet(CONFIG_KEY);
+  if (!cfg) { showScreen('screen-setup'); return; }
+  CFG = cfg;
+  loadFromGitHub();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Setup
+// ═══════════════════════════════════════════════════════════════════════════════
+document.getElementById('connect-btn').addEventListener('click', async () => {
+  const token = document.getElementById('s-token').value.trim();
+  const owner = document.getElementById('s-owner').value.trim();
+  const repo = document.getElementById('s-repo').value.trim();
+  const pass = document.getElementById('s-pass').value;
+  const errEl = document.getElementById('setup-error');
+  errEl.textContent = '';
+
+  if (!token || !owner || !repo || !pass) { errEl.textContent = 'All fields are required.'; return; }
+
+  const btn = document.getElementById('connect-btn');
+  btn.textContent = 'Connecting...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${GH_API}/repos/${owner}/${repo}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' },
+    });
+    if (r.status === 401) throw new Error('Invalid token.');
+    if (r.status === 404) throw new Error('Repository not found. Check username and repo name.');
+    if (!r.ok) throw new Error(`GitHub error: ${r.status}`);
+    CFG = { token, owner, repo, passphrase: pass };
+    storageSet(CONFIG_KEY, CFG);
+    await loadFromGitHub();
+  } catch (e) {
+    errEl.textContent = e.message;
+    btn.textContent = 'Connect';
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('retry-btn').addEventListener('click', loadFromGitHub);
+document.getElementById('reconfig-btn').addEventListener('click', () => {
+  storageSet(CONFIG_KEY, null);
+  CFG = null;
+  showScreen('screen-setup');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tab routing
+// ═══════════════════════════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    ACTIVE_TAB = tab;
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTab(tab);
+  });
+});
+
+function renderTab(tab) {
+  const el = document.getElementById('tab-content');
+  if (tab === 'stack') renderStack(el);
+  else if (tab === 'schedule') renderSchedule(el);
+  else if (tab === 'research') renderResearch(el);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DOM helpers
+// ═══════════════════════════════════════════════════════════════════════════════
+function h(tag, attrs = {}, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
+function badge(label, cls) {
+  return h('span', { class: `badge ${cls}` }, String(label));
+}
+
+function mkField(label, value, onChange, opts = {}) {
+  const wrap = h('div', { class: 'field' });
+  wrap.appendChild(h('span', { class: 'field-label' }, label));
+  let input;
+  if (opts.options) {
+    input = h('select');
+    opts.options.forEach(o => {
+      const opt = h('option', { value: o }, o);
+      if (o === value) opt.selected = true;
+      input.appendChild(opt);
+    });
+  } else if (opts.textarea) {
+    input = h('textarea');
+    input.value = value;
+  } else {
+    input = h('input', { type: opts.type || 'text' });
+    input.value = value;
+    if (opts.placeholder) input.placeholder = opts.placeholder;
+  }
+  input.addEventListener('change', e => onChange(e.target.value));
+  input.addEventListener('input', e => onChange(e.target.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function mkBtn(label, cls, onClick, disabled = false) {
+  const b = h('button', { class: `btn ${cls}`, onclick: onClick });
+  b.textContent = label;
+  if (disabled) b.disabled = true;
+  return b;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Modal
+// ═══════════════════════════════════════════════════════════════════════════════
+function openModal(title, bodyFn, footerFn) {
+  document.getElementById('modal-title').textContent = title;
+  const body = document.getElementById('modal-body');
+  const foot = document.getElementById('modal-footer');
+  body.innerHTML = '';
+  foot.innerHTML = '';
+  bodyFn(body);
+  footerFn(foot);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Supplement form
+// ═══════════════════════════════════════════════════════════════════════════════
+function buildSuppForm(supp, body) {
+  const f = { ...supp };
+  const update = (k, v) => { f[k] = v; };
+
+  const grid = h('div', { class: 'form-grid' });
+
+  grid.appendChild(h('div', { class: 'span2' }, mkField('Name', f.name, v => update('name', v))));
+  grid.appendChild(mkField('Brand', f.brand, v => update('brand', v)));
+  grid.appendChild(mkField('Form', f.form, v => update('form', v), { options: FORMS }));
+  grid.appendChild(mkField('Dose', f.dose, v => update('dose', v)));
+  grid.appendChild(mkField('Frequency', f.frequency, v => update('frequency', v), { options: FREQS }));
+  grid.appendChild(mkField('Timing', f.timing, v => update('timing', v), { options: TIMINGS }));
+  grid.appendChild(mkField('Cost / serving', f.cost_per_serving, v => update('cost_per_serving', v)));
+  grid.appendChild(mkField('Started', f.started, v => update('started', v), { type: 'date' }));
+  grid.appendChild(h('div', { class: 'span2' }, mkField('Purpose', f.purpose, v => update('purpose', v))));
+  grid.appendChild(mkField('Ingredient evidence', f.evidence_tier, v => update('evidence_tier', v), { options: EV_TIERS }));
+  grid.appendChild(mkField('Product evidence', f.product_evidence_tier, v => update('product_evidence_tier', v), { options: PE_TIERS }));
+  grid.appendChild(h('div', { class: 'span2' }, mkField('3rd-party tested', f.third_party_tested, v => update('third_party_tested', v), { options: TESTING })));
+  grid.appendChild(h('div', { class: 'span2' }, mkField('Notes', f.notes, v => update('notes', v), { textarea: true })));
+
+  body.appendChild(grid);
+  return f;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Stack tab
+// ═══════════════════════════════════════════════════════════════════════════════
+let STACK_FILTER = 'active';
+
+function renderStack(container) {
+  container.innerHTML = '';
+  const wrap = h('div', { class: 'pad' });
+
+  const toolbar = h('div', { class: 'tab-toolbar' });
+  const pills = h('div', { class: 'filter-pills' });
+  ['active', 'paused', 'all'].forEach(f => {
+    const p = h('button', {
+      class: `pill${STACK_FILTER === f ? ' active' : ''}`,
+      onclick: () => { STACK_FILTER = f; renderStack(container); }
+    }, f.charAt(0).toUpperCase() + f.slice(1));
+    pills.appendChild(p);
+  });
+  toolbar.appendChild(pills);
+  toolbar.appendChild(mkBtn('+ Add', 'btn-solid btn-sm', () => showSuppModal(null)));
+  wrap.appendChild(toolbar);
+
+  const filtered = DATA.stack.filter(s => STACK_FILTER === 'all' ? true : s.status === STACK_FILTER);
+
+  if (!filtered.length) {
+    const empty = h('div', { class: 'empty' });
+    empty.appendChild(h('div', { class: 'empty-icon' }, '💊'));
+    empty.appendChild(h('div', { class: 'empty-title' }, STACK_FILTER === 'active' ? 'No active supplements' : 'Nothing here'));
+    if (STACK_FILTER === 'active' && !DATA.stack.length)
+      empty.appendChild(h('div', { class: 'empty-desc' }, 'Add supplements here or use your Cowork skill on desktop.'));
+    wrap.appendChild(empty);
+  } else {
+    filtered.forEach(s => wrap.appendChild(buildSuppCard(s, container)));
+  }
+  container.appendChild(wrap);
+}
+
+function buildSuppCard(s, container) {
+  const card = h('div', { class: `supp-card${s.status === 'discontinued' ? ' discontinued' : ''}` });
+  const header = h('div', { class: 'supp-card-header', onclick: () => { body.classList.toggle('open'); } });
+
+  const top = h('div', { class: 'supp-card-top' });
+  const left = h('div', { class: 'supp-card-left' });
+  const nameRow = h('div', { class: 'supp-name-row' });
+  nameRow.appendChild(h('span', { class: 'supp-name' }, s.name));
+  if (s.status === 'paused') nameRow.appendChild(h('span', { class: 'supp-paused-tag' }, 'PAUSED'));
+  left.appendChild(nameRow);
+  if (s.brand) left.appendChild(h('div', { class: 'supp-brand' }, `${s.brand} · ${s.form}`));
+
+  const right = h('div', { class: 'supp-card-right' });
+  right.appendChild(h('div', { class: 'supp-dose' }, s.dose));
+  right.appendChild(h('div', { class: 'supp-timing' }, s.timing));
+
+  top.appendChild(left);
+  top.appendChild(right);
+  header.appendChild(top);
+  if (s.purpose) header.appendChild(h('div', { class: 'supp-purpose' }, s.purpose));
+
+  const badges_el = h('div', { class: 'supp-badges' });
+  badges_el.appendChild(badge(s.evidence_tier, EV_CLASS[s.evidence_tier] || 'badge-unknown'));
+  badges_el.appendChild(badge(s.product_evidence_tier, PE_CLASS[s.product_evidence_tier] || 'badge-unknown'));
+  if (s.third_party_tested && !['none', 'unknown'].includes(s.third_party_tested))
+    badges_el.appendChild(badge(`✓ ${s.third_party_tested}`, 'badge-tested'));
+  header.appendChild(badges_el);
+  card.appendChild(header);
+
+  const body = h('div', { class: 'supp-card-body' });
+  const meta = h('div', { class: 'supp-meta' });
+  [['Frequency', s.frequency], ['Cost/srv', s.cost_per_serving || '—'], ['Started', s.started || '—']].forEach(([k, v]) => {
+    const m = h('div');
+    m.appendChild(h('div', { class: 'supp-meta-key' }, k));
+    m.appendChild(h('div', { class: 'supp-meta-val' }, v));
+    meta.appendChild(m);
+  });
+  body.appendChild(meta);
+
+  if (s.notes) body.appendChild(h('div', { class: 'supp-notes' }, s.notes));
+
+  const actions = h('div', { class: 'supp-actions' });
+  actions.appendChild(mkBtn('Edit', 'btn-accent btn-sm', () => showSuppModal(s)));
+  const paused = s.status === 'paused';
+  actions.appendChild(mkBtn(paused ? 'Resume' : 'Pause', 'btn-muted btn-sm', () => {
+    mutateData(d => {
+      const t = d.stack.find(x => x.id === s.id);
+      if (t) t.status = paused ? 'active' : 'paused';
+    });
+    renderStack(container);
+  }));
+  if (s.status !== 'discontinued') {
+    actions.appendChild(mkBtn('Discontinue', 'btn-red btn-sm', () => {
+      mutateData(d => { const t = d.stack.find(x => x.id === s.id); if (t) t.status = 'discontinued'; });
+      renderStack(container);
+    }));
+  }
+  body.appendChild(actions);
+  card.appendChild(body);
+  return card;
+}
+
+function showSuppModal(existing) {
+  const isEdit = !!existing?.id;
+  const supp = existing ? { ...existing } : { ...BLANK_SUPP };
+  let formRef;
+
+  openModal(
+    isEdit ? 'Edit Supplement' : 'Add Supplement',
+    body => { formRef = buildSuppForm(supp, body); },
+    foot => {
+      foot.appendChild(mkBtn('Cancel', 'btn-muted btn-md', closeModal));
+      foot.appendChild(mkBtn(isEdit ? 'Save' : 'Add to Stack', 'btn-accent btn-md btn-full', () => {
+        if (!formRef.name.trim()) return;
+        mutateData(d => {
+          const idx = d.stack.findIndex(x => x.id === formRef.id);
+          const record = { ...formRef, id: formRef.id || uid() };
+          if (idx >= 0) d.stack[idx] = record;
+          else d.stack.push(record);
+        });
+        closeModal();
+        renderStack(document.getElementById('tab-content'));
+      }));
+    }
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Schedule tab
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderSchedule(container) {
+  container.innerHTML = '';
+  const active = DATA.stack.filter(s => s.status === 'active');
+
+  if (!active.length) {
+    const wrap = h('div', { class: 'pad' });
+    const empty = h('div', { class: 'empty' });
+    empty.appendChild(h('div', { class: 'empty-icon' }, '🕐'));
+    empty.appendChild(h('div', { class: 'empty-title' }, 'No active supplements to schedule'));
+    wrap.appendChild(empty);
+    container.appendChild(wrap);
+    return;
+  }
+
+  const wrap = h('div', { class: 'pad' });
+  TIMING_BUCKETS.forEach(bucket => {
+    const supps = active.filter(s => bucket.keys.includes(s.timing));
+    if (!supps.length) return;
+    const b = h('div', { class: 'bucket' });
+    const bh = h('div', { class: 'bucket-header' });
+    bh.appendChild(h('span', { class: 'bucket-emoji' }, bucket.emoji));
+    bh.appendChild(h('span', { class: 'bucket-label' }, bucket.label));
+    bh.appendChild(h('div', { class: 'bucket-line' }));
+    b.appendChild(bh);
+    supps.forEach(s => {
+      const item = h('div', { class: 'sched-item' });
+      const info = h('div');
+      info.appendChild(h('div', { class: 'sched-name' }, s.name));
+      if (s.purpose) info.appendChild(h('div', { class: 'sched-purpose' }, s.purpose));
+      item.appendChild(info);
+      item.appendChild(h('div', { class: 'sched-dose' }, s.dose));
+      b.appendChild(item);
+    });
+    wrap.appendChild(b);
+  });
+  container.appendChild(wrap);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Research tab
+// ═══════════════════════════════════════════════════════════════════════════════
+let SHOW_LOG_FORM = false;
+let VIEWING_FILE = null;
+
+function renderResearch(container) {
+  container.innerHTML = '';
+
+  if (VIEWING_FILE) {
+    renderResearchViewer(container);
+    return;
+  }
+
+  const wrap = h('div', { class: 'pad' });
+
+  const toolbar = h('div', { class: 'tab-toolbar' });
+  toolbar.appendChild(h('div', { class: 'section-label', style: { marginBottom: '0' } }, 'Research Log'));
+  toolbar.appendChild(mkBtn('+ Log', 'btn-solid btn-sm', () => {
+    SHOW_LOG_FORM = !SHOW_LOG_FORM;
+    renderResearch(container);
+  }));
+  wrap.appendChild(toolbar);
+
+  if (SHOW_LOG_FORM) wrap.appendChild(buildLogForm(container));
+
+  if ((DATA.research_log || []).length) {
+    DATA.research_log.forEach(entry => {
+      const item = h('div', { class: 'research-log-item' });
+      const top = h('div', { class: 'research-log-top' });
+      top.appendChild(h('div', { class: 'research-cat' }, entry.category));
+      top.appendChild(h('div', { class: 'research-date' }, entry.date));
+      item.appendChild(top);
+      if (entry.conclusion) item.appendChild(h('div', { class: 'research-conclusion' }, entry.conclusion));
+      if (entry.chosen_product) item.appendChild(h('div', { class: 'research-chosen' }, `→ ${entry.chosen_product}`));
+      wrap.appendChild(item);
+    });
+  }
+
+  if (RESEARCH_FILES === null) {
+    wrap.appendChild(h('div', { style: { textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '13px' } }, 'Loading research files...'));
+    loadResearchFiles(container);
+  } else if (RESEARCH_FILES.length) {
+    wrap.appendChild(h('div', { class: 'section-label', style: { marginTop: '20px' } }, 'Research Files'));
+    RESEARCH_FILES.forEach(f => {
+      const row = h('div', { class: 'research-file', onclick: () => loadResearchFile(f, container) });
+      row.appendChild(h('div', { class: 'research-file-name' }, f.name));
+      row.appendChild(h('div', { class: 'research-file-arrow' }, '›'));
+      wrap.appendChild(row);
+    });
+  }
+
+  if (!(DATA.research_log || []).length && RESEARCH_FILES !== null && !RESEARCH_FILES.length) {
+    const empty = h('div', { class: 'empty' });
+    empty.appendChild(h('div', { class: 'empty-icon' }, '📄'));
+    empty.appendChild(h('div', { class: 'empty-title' }, 'No research yet'));
+    empty.appendChild(h('div', { class: 'empty-desc' }, 'Research files from your Cowork skill will appear here.\nLog entries manually to track decisions.'));
+    wrap.appendChild(empty);
+  }
+
+  container.appendChild(wrap);
+}
+
+async function loadResearchFiles(container) {
+  try {
+    const { status, body } = await ghGet('research');
+    RESEARCH_FILES = (status === 200 && Array.isArray(body))
+      ? body.filter(f => f.name.endsWith('.md')).sort((a, b) => b.name.localeCompare(a.name))
+      : [];
+  } catch { RESEARCH_FILES = []; }
+  if (ACTIVE_TAB === 'research') renderResearch(container);
+}
+
+async function loadResearchFile(file, container) {
+  VIEWING_FILE = { name: file.name, content: 'Loading...' };
+  renderResearch(container);
+  try {
+    const { found, content } = await fetchFile(file.path);
+    VIEWING_FILE = { name: file.name, content: found ? content : 'File not found.' };
+  } catch {
+    VIEWING_FILE = { name: file.name, content: 'Could not load this file.' };
+  }
+  renderResearch(container);
+}
+
+function renderResearchViewer(container) {
+  const wrap = h('div', { id: 'research-viewer' });
+  wrap.appendChild(h('button', { class: 'back-btn', onclick: () => { VIEWING_FILE = null; renderResearch(container); } }, '← Back'));
+  wrap.appendChild(h('div', { class: 'section-label' }, VIEWING_FILE.name));
+  wrap.appendChild(h('div', { id: 'research-viewer-content' }, VIEWING_FILE.content));
+  container.appendChild(wrap);
+}
+
+function buildLogForm(container) {
+  const form = h('div', { class: 'log-form' });
+  const state = { date: today(), category: '', conclusion: '', chosen_product: '' };
+
+  form.appendChild(mkField('Category', state.category, v => state.category = v));
+  form.appendChild(mkField('Date', state.date, v => state.date = v, { type: 'date' }));
+  form.appendChild(mkField('Conclusion / findings', state.conclusion, v => state.conclusion = v, { textarea: true }));
+  form.appendChild(mkField('Chosen product', state.chosen_product, v => state.chosen_product = v));
+
+  const btns = h('div', { class: 'log-form-btns' });
+  btns.appendChild(mkBtn('Cancel', 'btn-muted btn-sm', () => { SHOW_LOG_FORM = false; renderResearch(container); }));
+  btns.appendChild(mkBtn('Save Entry', 'btn-accent btn-sm', () => {
+    if (!state.category.trim()) return;
+    mutateData(d => { d.research_log.unshift({ ...state }); });
+    SHOW_LOG_FORM = false;
+    renderResearch(container);
+  }));
+  form.appendChild(btns);
+  return form;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Profile
+// ═══════════════════════════════════════════════════════════════════════════════
+document.getElementById('profile-btn').addEventListener('click', () => {
+  const p = DATA.profile;
+  const state = {
+    goals: (p.goals || []).join(', '),
+    medications: (p.medications || []).join(', '),
+    conditions: (p.conditions || []).join(', '),
+    notes: p.notes || '',
+  };
+
+  openModal('Health Profile',
+    body => {
+      const wrap = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } });
+      wrap.appendChild(mkField('Goals (comma-separated)', state.goals, v => state.goals = v, { textarea: true }));
+      wrap.appendChild(mkField('Medications (comma-separated)', state.medications, v => state.medications = v, { textarea: true }));
+      wrap.appendChild(mkField('Conditions (comma-separated)', state.conditions, v => state.conditions = v, { textarea: true }));
+      wrap.appendChild(mkField('Notes', state.notes, v => state.notes = v, { textarea: true }));
+      body.appendChild(wrap);
+    },
+    foot => {
+      foot.appendChild(mkBtn('Cancel', 'btn-muted btn-md', closeModal));
+      foot.appendChild(mkBtn('Save Profile', 'btn-accent btn-md btn-full', () => {
+        mutateData(d => {
+          d.profile = {
+            goals: state.goals.split(',').map(s => s.trim()).filter(Boolean),
+            medications: state.medications.split(',').map(s => s.trim()).filter(Boolean),
+            conditions: state.conditions.split(',').map(s => s.trim()).filter(Boolean),
+            notes: state.notes,
+          };
+        });
+        closeModal();
+      }));
+    }
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Boot
+// ═══════════════════════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
