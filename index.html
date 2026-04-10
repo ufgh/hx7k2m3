@@ -120,7 +120,7 @@ select option { background: var(--surface); color: var(--text); }
 #bottom-nav {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px; background: var(--surface);
-  border-top: 1px solid var(--border); display: flex; z-index: 20;
+  border-top: 1px solid var(--border); display: none; z-index: 20;
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .nav-btn {
@@ -560,14 +560,29 @@ function ghHeaders() {
   };
 }
 
+// Fetch with a 15-second timeout so we never hang indefinitely
+async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(tid);
+    return r;
+  } catch (e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('Request timed out after 15s. Check your connection.');
+    throw e;
+  }
+}
+
 async function ghGet(path) {
-  const r = await fetch(`${GH_API}/repos/${CFG.owner}/${CFG.repo}/contents/${path}`, { headers: ghHeaders() });
+  const r = await fetchWithTimeout(`${GH_API}/repos/${CFG.owner}/${CFG.repo}/contents/${path}`, { headers: ghHeaders() });
   return { status: r.status, body: await r.json().catch(() => null) };
 }
 
 async function ghPut(path, content, sha, msg) {
   const payload = { message: msg || `sync: ${path}`, content, ...(sha ? { sha } : {}) };
-  const r = await fetch(`${GH_API}/repos/${CFG.owner}/${CFG.repo}/contents/${path}`, {
+  const r = await fetchWithTimeout(`${GH_API}/repos/${CFG.owner}/${CFG.repo}/contents/${path}`, {
     method: 'PUT', headers: ghHeaders(), body: JSON.stringify(payload),
   });
   return { status: r.status, body: await r.json().catch(() => null) };
@@ -650,6 +665,9 @@ function mutateData(updater) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Only show nav and header on main screen
+  const isMain = id === 'screen-main';
+  document.getElementById('bottom-nav').style.display = isMain ? 'flex' : 'none';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -701,12 +719,12 @@ document.getElementById('connect-btn').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-    const r = await fetch(`${GH_API}/repos/${owner}/${repo}`, {
+    const r = await fetchWithTimeout(`${GH_API}/repos/${owner}/${repo}`, {
       headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' },
     });
-    if (r.status === 401) throw new Error('Invalid token.');
-    if (r.status === 404) throw new Error('Repository not found. Check username and repo name.');
-    if (!r.ok) throw new Error(`GitHub error: ${r.status}`);
+    if (r.status === 401) throw new Error('Invalid token — check your PAT.');
+    if (r.status === 404) throw new Error('Repository not found. Check username and repo name exactly.');
+    if (!r.ok) throw new Error(`GitHub error ${r.status}: ${(await r.json().catch(()=>({}))).message || 'unknown'}`);
     CFG = { token, owner, repo, passphrase: pass };
     storageSet(CONFIG_KEY, CFG);
     await loadFromGitHub();
