@@ -51,8 +51,11 @@ select option { background: var(--surface); color: var(--text); }
 #app { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; }
 
 /* Screens */
-.screen { display: none; }
-.screen.active { display: block; }
+.screen { display: none !important; }
+.screen.active { display: block !important; }
+#screen-setup.active { display: flex !important; }
+#screen-loading.active { display: flex !important; }
+#screen-error.active { display: flex !important; }
 
 /* Setup */
 #screen-setup {
