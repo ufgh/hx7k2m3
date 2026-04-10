@@ -679,7 +679,11 @@ async function loadFromGitHub() {
     const { found, content, sha } = await fetchFile('supplements.json');
     if (found) {
       FILE_SHA = sha;
-      DATA = JSON.parse(content);
+      try {
+        DATA = JSON.parse(content);
+      } catch (parseErr) {
+        throw new Error(`Data parse failed: ${parseErr.message}`);
+      }
     } else {
       const plain = JSON.stringify(EMPTY_DATA, null, 2);
       FILE_SHA = await pushFile('supplements.json', plain, '');
@@ -687,8 +691,19 @@ async function loadFromGitHub() {
       ensureGitignore();
     }
     showScreen('screen-main');
-    renderTab(ACTIVE_TAB);
+    try {
+      renderTab(ACTIVE_TAB);
+    } catch (renderErr) {
+      // Show error but stay on main screen so user can see what happened
+      console.error('Render error:', renderErr);
+      document.getElementById('tab-content').innerHTML =
+        `<div style="padding:20px;color:var(--red);font-size:13px;font-family:var(--mono)">
+          Render error: ${renderErr.message}<br><br>
+          <small style="color:var(--muted)">Open browser console for details.</small>
+        </div>`;
+    }
   } catch (e) {
+    console.error('Load error:', e);
     document.getElementById('error-msg').textContent = e.message || 'Failed to connect to GitHub.';
     showScreen('screen-error');
   }
